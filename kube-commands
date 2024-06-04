@@ -1,0 +1,305 @@
+CKAD - allowed links 
+
+https://helm.sh/docs  
+https://kubernetes.io/blog/ 
+https://kubernetes.io/docs/
+
+To get controller details:
+	>kubectl get deploy ingress-nginx-controller -n ingress-nginx -o yaml | grep backend-service
+To get all pods across namespace:
+	>k get pods -A
+To get all controller in a piriticular namespace:
+	>k get controller -n ingress-namespace
+
+POD:
+ To describe: 
+	>k describe pod webapp
+ To get pod manifest file:
+    >k get pod webapp -o yaml > webapp.yaml 
+ To view logs of terminated pod:
+ 	>kubectl exec webapp -- cat /log/app.log
+
+ To get pod manifest through dry run:
+ 	>kubectl run nginx --image=nginx --dry-run=client -o yaml
+
+ To replace : 
+ 	>kubectl replace -f webapp.yaml --force
+
+
+
+Pod with mount voulme to directory 
+
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  labels:
+    run: webaapp
+  name: webaapp
+spec:
+  containers:
+  - image: kodekloud/event-simulator
+    name: webaapp
+    resources: {}
+    volumeMounts:
+      - mountPath: /log
+        name: log-volume
+  volumes:
+  - name: log-volume
+    hostPath:
+      path: /var/log/webapp
+      type: Directory
+~                                  
+
+
+
+to get pvc 
+kubectl get pvc
+Or
+kubectl get pv
+get storage class 
+
+kubectl get sc
+
+k describe sc local-storage
+
+To check base image of a docker image : 
+docker run python:3.6 cat /etc/*release*
+
+
+To view config >>
+k config view
+
+
+To read config file from different location: 
+kubectl config view --kubeconfig my-kube-config
+
+
+kube config > 
+current context - 
+kubectl config --kubeconfig=/root/my-kube-config current-context
+
+use context >
+kubectl config --kubeconfig=/root/my-kube-config use-context research
+
+
+
+
+
+If you set up a Kubernetes cluster on GCP, AWS, Azure, or any other cloud platform, a default StorageClass creates for you which uses the standard persistent disk type.
+
+Set alias during exam **************
+alias k=kubectl
+
+
+
+To check authorization modes supported of kube api server 
+
+>k describe pod kube-apiserver-controlplane -n kube-system
+
+k describe pod kube-apiserver-controlplane -n kube-system | grep mode
+
+To check roles in default namespace :
+>k get roles
+
+To check resources allowed with a role: 
+>k describe role kube-proxy -n kube-system
+
+To check account role is assigned to > 
+> kubectl describe rolebinding kube-proxy -n kube-system
+
+To inspect permission:
+>k get pods --as dev-user
+
+
+To correct role ***
+Run the command:
+> kubectl edit role developer -n blue and correct the resourceNames field. You don't have to delete the role.
+
+
+
+To add new role ***  Add a new rule in the existing role developer to grant the dev-user permissions to create deployments in the blue namespace.
+
+
+Remember to add api group "apps".
+
+
+>kubectl edit role developer -n blue
+ 
+ append below to end of file >
+
+ - apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+
+so new file  ->
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: developer
+  namespace: blue
+rules:
+- apiGroups:
+  - apps
+  resourceNames:
+  - dark-blue-app
+  resources:
+  - pods
+  verbs:
+  - get
+  - watch
+  - create
+  - delete
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+
+
+  To Get cluster roles *** 
+
+  >kubectl get clusterroles --no-headers  
+
+  Cluster role bindings -
+  >k get clusterrolebindings.rbac.authorization.k8s.io  --no-headers | wc -l
+
+  What user/groups are the cluster-admin role bound to? - 
+  check cluster role binding with 
+  >  kubectl describe clusterrolebinding cluster-admin
+
+
+Get the API groups and resource names from command ..Use the given spec:
+
+  >kubectl api-resources 
+
+  To check admission plugin enabled by default ->
+  >k exec -it kube-apiserver-controlplane -n kube-system -- kube-apiserver -h | grep 'enable-admission-plugins'
+
+  To check preferred version of an API - 
+  >
+  root@controlplane:~# kubectl proxy 8001&.  - it starts proxy server 
+root@controlplane:~# curl localhost:8001/apis/authorization.k8s.io
+
+
+Creates a proxy server or application-level gateway between localhost and the Kubernetes API server. It also allows serving static content over specified HTTP path. All incoming data enters through one port and gets forwarded to the remote Kubernetes API server port, except for the path matching the static content path.
+
+
+
+TO deploy custom resource > 
+>k create -f custom.yaml 
+
+
+grep case insensative ->
+>k describe crd collectors.monitoring.controller  | grep -i Image
+
+
+To identify short names use 
+> k api-resources
+
+To identify preferred version
+connect to api server 
+> kubectl proxy 8001&
+call curl command 
+>curl localhost:8001/apis/authorization.k8s.io
+
+Note 8001 port and localhost:8001/apis/ as endpt.. 
+
+
+To Enable the v1alpha1 version for rbac.authorization.k8s.io API group on the controlplane node.
+
+
+>cp -v /etc/kubernetes/manifests/kube-apiserver.yaml /root/kube-apiserver.yaml.backup
+
+> vi /etc/kubernetes/manifests/kube-apiserver.yaml
+
+add 
+>   - --runtime-config=rbac.authorization.k8s.io/v1alpha1 --> This one
+
+
+To install any plugin we just need to make it executable and move to  /usr/local/bin/path
+
+curl to download and make executable
+chmod +x kubectl-convert 
+mv 
+
+
+
+To convert api version from one to another >>
+use convert 
+root@controlplane:~# kubectl-convert -f ingress-old.yaml --output-version networking.k8s.io/v1 > ingress-new.yaml
+
+create 
+kubectl create -f ingress-new.yaml
+and verify 
+
+kubectl get ing ingress-space -oyaml | grep apiVersion
+
+
+To scale replicas -
+>  k scale deploy --replicas=1 frontend-v2
+
+
+
+To debug failing pod - 
+kubectl get events -n <namespace> --sort-
+by=.metadata.creationTimestamp
+
+
+To check labels of a pod -
+> k get pod --show-labels
+
+
+
+to check connectivity - 
+> k exec -it webapp-color -- sh
+> nc -v -z -w 2 secure-service 80  - try connecting to (vzw prameters service-name port)
+
+
+
+Job sspec : 
+
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pi-with-timeout
+spec:
+  completions: 1 - number of completions***
+  backoffLimit: 5
+  activeDeadlineSeconds: 100
+  template:
+    spec:
+      containers:
+      - name: pi
+        image: perl:5.34.0
+        command: ["perl", "-Mbignum=bpi", "-wle", "print bpi(2000)"]
+      restartPolicy: Never
+
+
+To check cron job stataus
+> K get cj
+
+
+
+To expose deployment> 
+
+> kubectl expose deployment redis --name=redis --port=6379 --target-port=6379
+
+within specific namespace >
+> kubectl expose deployment redis --port=6379 --name messaging-service --namespace marketing
+
+
+
+To call command from a container -
+> use sh c ***
+    spec:
+      containers:
+      - command:
+        - sh 
+        - -c
+        - "cowsay I am going to ace CKAD!"
